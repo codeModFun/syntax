@@ -1,4 +1,0 @@
-syntax
-======
-
-Code storage
