@@ -1,0 +1,275 @@
+
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.String;
+import java.util.Arrays;
+import java.util.Random;
+
+/**
+ * 
+ * @author Brian Thanh Khuu
+ * Project 3 - Genetics Algorithm Partition - GA
+ *
+ */
+public class partitionGA {
+	//----- initial parameters for GA
+	static int population= 15;
+	static int maxGenerations = 200;
+	static double crossoverRate= 5;
+	static double mutationRate= 3;
+	static int fitnessThreshold = 3;
+	//-----
+	static int fitness=10;
+	static int[] input;
+	static int[][] populationArray;
+	static int[][] generationArray;
+	static int iteration;
+	static int numOfGeneration;
+	static Random generator = new Random();
+/**
+ * Read text and prints text to file.
+ * 
+ * Checks number of generation and fitness to determine the output
+ * 	
+ * @param args	accepts an input arg[0] and an output arg[1]
+ * @throws IOException	if no input/output is found
+ */
+	public static void main(String[] args) throws IOException{
+		PrintStream out = new PrintStream(new FileOutputStream(args[1]));
+		System.setOut(out);//prints all system out to output file
+		readFile(args[0]);
+		populationArray = new int[population][input.length+1];
+		generationArray = new int[population][input.length+1];
+		int[] parent1 = new int[input.length+1];
+		int[] parent2 = new int[input.length+1];
+		
+		displayParameters(); //display the initial paramaters
+		initializeGenerationZero();//display the initial population
+		
+		while(numOfGeneration<=maxGenerations && fitness>=fitnessThreshold){
+			iteration=0;//iteration of the list of population
+			int parent2choice;//deciding what parent2 to choose
+			for(int i=0; i<input.length+1; i++){
+				parent1[i]=populationArray[0][i];//store parent1 best fitness case
+			}//for
+			System.out.println();
+			for(int i=0; i<population;i++){
+				for(int j=0; j<input.length+1; j++){
+					parent2choice=generator.nextInt(population-1)+1;//k tournament choosing of parent2
+					parent2[j]=populationArray[parent2choice][j];//store parent 2 information
+				}//for
+				crossover(parent1,parent2);//do the crossover for the parent1/parent2
+			}//for
+			numOfGeneration++;//new crossover/mutation generation incrementor
+			populationArray=generationArray;//copy the new generation populated data to the one to repeat
+			sort(populationArray);//sort the array accordingly
+			if(populationArray[0][input.length]<=fitnessThreshold)
+				fitness=populationArray[0][input.length];//if the fitness is < than the threshold, fitness found and save it
+		
+			System.out.println("Generation: "+ numOfGeneration);
+			for(int i=0; i<population; i++){//print the array
+				for(int j=0;j<input.length;j++)
+					System.out.print(populationArray[i][j]+" ");
+				System.out.print("Fitness: "+populationArray[i][input.length] );
+				System.out.println();
+			}//for
+		}//while
+		
+		//print the results found
+		System.out.println();
+		System.out.println("Result at generation #" + numOfGeneration );
+		System.out.print("Bit String ");
+		for(int i=0; i<input.length; i++){
+			System.out.print(populationArray[0][i] + " ");		
+		}//for
+		System.out.println();
+		generateAnswerSet();//generate the answer set for 0 and 1
+		System.out.println("Fitness: " + populationArray[0][input.length]);
+	}//main
+	
+/**
+ * this is the read from text file method, it will read from the text file one line at a time
+ * and store the value into an integer array
+ * 
+ * @param fileName		the input source file
+ * @throws IOException	if there are no files, throws an no file error
+ */
+	public static void readFile(String fileName) throws IOException{
+		BufferedReader in = new BufferedReader(new FileReader(fileName));
+		String line = "";
+		while((line= in.readLine()) != null){//terminate if there is no more line to read
+			String[] inputArray=line.split(" ");//split the line data
+			int lengthOfInputArray=inputArray.length;//the length of the array
+			input=new int[lengthOfInputArray];//dynamically create the input array
+			for(int i=0; i<lengthOfInputArray; i++)//store the data to another array of integers
+				input[i]=Integer.parseInt(inputArray[i]);
+		}//while
+	}//End of readFile
+/**
+ * Sorts the array according to it's fitness function by shifting array rows, in ascending order	
+ * 
+ * @param popArray	the array to be sorted
+ */
+	public static void sort(int [][] popArray){
+		Arrays.sort(popArray, new java.util.Comparator<int[]>(){
+			public int compare(int[]a, int[]b){
+				return a[input.length]-b[input.length];
+			}//compare	
+		});
+	}//sort
+/**
+ * Using the crossover rate to determine if there is any crossover that is needed to choose between
+ * parent 1 and parent2
+ * 	
+ * @param parent1	parent1 array bit information
+ * @param parent2	parent2 array bit information
+ */
+	public static void crossover(int[] parent1, int[] parent2){
+		int[] child = new int[parent1.length];
+		for(int i=0; i<parent1.length-1; i++){
+			if(generator.nextInt(100) < 100-crossoverRate)//if random number is less than 100%-crossover rate, 
+				child[i]=parent1[i];					//to keep parent1, else take parent2's array location's bit
+			else
+				child[i]=parent2[i];	
+		}
+		mutation(child);//call the mutation function
+	}//crossover
+/**
+ * Random generator to determine if the child's bit needs to flip or not	
+ * 
+ * @param child		child array created by the crossover function
+ */
+	public static void mutation(int[] child){
+		String childString = "";
+		for(int i=0; i<child.length-1; i++){
+			if(generator.nextInt(100) >= 100-mutationRate){//if the random num is less than 100%-mutation rate
+				if(child[i] == 0)							//if the child bit is 0, flip to 1 and vice versa
+					child[i]=1;
+				else
+					child[i]=0;
+			}//if
+		}//for
+		for(int i=0; i<child.length;i++)
+			childString+=Integer.toString(child[i]);
+		generationFitness(childString,child ,input,child.length-1);//determine the fitness of the child
+		for(int i=0; i<child.length;i++)
+			generationArray[iteration][i]=child[i];//store the array to the new population array
+		iteration++;
+	}//mutation
+/**
+ * Generation Fitness calculation of the array	
+ * 
+ * @param binaryString	bit string to traverse and split into set
+ * @param child			the child array information to store new data into
+ * @param inputArray	input array of data to add into sets
+ * @param index			the current index that needs to change in the array to store fitness
+ */
+	public static void generationFitness(String binaryString, int[] child, int[] inputArray,int index){
+    	int sumOfArray0=0,sumOfArray1=0;
+    	for(int i=0;i<inputArray.length;i++){
+    		int s = binaryString.charAt(i)-48;
+    		if(s==0)
+    			sumOfArray0+=inputArray[i];
+    		else
+    			sumOfArray1 += inputArray[i];
+    	}//for
+    	child[index]= (int) Math.pow((sumOfArray0-sumOfArray1), 2);
+	}//generationFitness
+/**
+ * 	Fitness function calculation of the array
+ * 
+ * @param binaryString	bit string to traverse and split into set
+ * @param iterations	the number of iteration to do the array
+ * @param inputArray	input array to determine the array of data the fitness comes from
+ * @param index			index of the current array to store fitness
+ */
+	public static void fitnessCalculation(String binaryString, int iterations, int[] inputArray, int index) {
+	    	int sumOfArray0=0,sumOfArray1=0;
+	    	for(int i=0;i<inputArray.length;i++){
+	    		int s = binaryString.charAt(i)-48;
+	    		if(s==0)
+	    			sumOfArray0+=inputArray[i];
+	    		else
+	    			sumOfArray1 += inputArray[i];
+	    	}//for
+	    	populationArray[index][input.length]=(int) Math.pow((sumOfArray0-sumOfArray1),2);
+	}//fitnessCalculation
+/**
+ * 	dispaly the parameter of the genetic algorithms
+ */
+	public static void displayParameters(){
+		System.out.print("Set: { ");
+		for(int i=0; i<input.length;i++)
+			System.out.print(input[i]+ " ");
+		System.out.println("}");
+		System.out.println("Population Size: " + population);
+		System.out.println("Max Generation: " + maxGenerations );
+		System.out.println("Fitness Threshold: " + fitnessThreshold);
+		System.out.println("Crossover Rate: "+ crossoverRate+"%");
+		System.out.println("Mutation Rate: " + mutationRate+"%");
+		System.out.println("Fitness Function = (Sum of weight '0' - Sum of Weight '1')^2");
+		System.out.println();
+	}//displayParameters
+/**
+ * 	intialize the generation zero with information that is randomly populated
+ */
+	public static void initializeGenerationZero(){
+		String binaryString="";
+		for(int i=0; i<population; i++){
+			binaryString="";
+			for(int j=0;j<input.length;j++){
+				populationArray[i][j] = generator.nextInt(2);
+				binaryString+=Integer.toString(populationArray[i][j]);
+			}//for
+			fitnessCalculation(binaryString,input.length,input, i);//check the fitness
+		}//for
+		sort(populationArray);//sort the array in ascending order
+		
+		//prints the array
+		System.out.println("Generation: 0");
+		for(int i=0; i<population; i++){
+			for(int j=0;j<input.length;j++)
+				System.out.print(populationArray[i][j]+" ");
+			System.out.print("Fitness: "+populationArray[i][input.length] );
+			System.out.println();
+		}//for
+		if(populationArray[0][input.length]<fitnessThreshold)
+			fitness=populationArray[0][input.length];
+	}//initializeGenerationZero()
+/**
+ * Dispaly the answer set that the partition answer is to display the sum and set 0 and 1	
+ */
+	public static void generateAnswerSet(){
+	    int[] sumArray0 = new int[input.length];
+	    int s0Counter=0,s1Counter=0;
+	    int sumOfArray0=0,sumOfArray1=0;
+	    int[] sumArray1 = new int[input.length];
+	    //store all the information of set 0 in set 0 and set 1 into set1.
+	    for(int i=0;i<input.length;i++){
+	    	int s = populationArray[0][i];
+	    	if(s==0){
+	    		sumArray0[s0Counter]=input[i];
+	    		sumOfArray0+=input[i];
+	    		s0Counter++;
+	    	}//if
+	    	else{
+	    		sumArray1[s1Counter]=input[i];
+	    		sumOfArray1 += input[i];
+	    		s1Counter++;
+	    	}//else
+	    }//for
+	    
+	    //display set information 0 and 1
+	    System.out.print("Set 0: {");
+    	for(int i=0; i<s0Counter;i++)
+    		System.out.print(" " + sumArray0[i]);
+    	System.out.println(" } Sum = " + sumOfArray0);
+    	System.out.print("Set 1: {");
+    	for(int i=0; i<s1Counter;i++)
+    		System.out.print(" " + sumArray1[i]);
+    	System.out.println(" } Sum = " + sumOfArray1); 	
+	}//generateAnswerSet
+}//End of Class
